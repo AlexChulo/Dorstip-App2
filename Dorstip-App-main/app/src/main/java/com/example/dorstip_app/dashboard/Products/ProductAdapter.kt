@@ -4,53 +4,73 @@ import android.content.Context
 import android.content.Intent
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.request.RequestOptions
-import com.example.dorstip_app.dashboard.DetailActivity
+import com.example.dorstip_app.dashboard.Review.ReviewViewModel
 import com.example.dorstip_app.databinding.ViewholderRecommendedBinding
 
-class ProductAdapter(val items: MutableList<ItemModel>) :
+// Adapter for displaying products in RecyclerView
+class ProductAdapter(private var items: MutableList<ItemModel>, private val context: Context) :
     RecyclerView.Adapter<ProductAdapter.ViewHolder>() {
 
     // ViewHolder class to hold the views
     class ViewHolder(val binding: ViewholderRecommendedBinding) :
         RecyclerView.ViewHolder(binding.root)
 
-    private var context: Context? = null
+    // ViewModel for fetching reviews
+    private lateinit var reviewViewModel: ReviewViewModel
 
-    // onCreateViewHolder method to inflate the layout for each item
+    // Create ViewHolder instances
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        context = parent.context
         val binding =
-            ViewholderRecommendedBinding.inflate(LayoutInflater.from(context), parent, false)
+            ViewholderRecommendedBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        // Initialize reviewViewModel with ViewModelProvider
+        reviewViewModel = ViewModelProvider(parent.context as AppCompatActivity).get(ReviewViewModel::class.java)
         return ViewHolder(binding)
     }
 
-    // onBindViewHolder method to bind data to each item's views
+    // Bind data to ViewHolder views
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        // Bind data to views for each item
-        holder.binding.tvDrinkName.text = items[position].title
-        holder.binding.tvPrice.text = "€" + items[position].price.toString()
-        holder.binding.tvRating.text = items[position].rating.toString()
+        val item = items[position]
 
-        // Load image using Glide library with CenterCrop transformation
+        // Set product details
+        holder.binding.tvDrinkName.text = item.title
+        holder.binding.tvPrice.text = "€" + item.price.toString()
+        holder.binding.tvRating.text = item.rating.toString()
+
+        // Load product image using Glide
         val requestOptions = RequestOptions().transform(CenterCrop())
         Glide.with(holder.itemView.context)
-            .load(items[position].picUrl[0])
+            .load(item.picUrl[0])
             .apply(requestOptions)
             .fitCenter()
             .into(holder.binding.ivDrink)
 
-        // Set click listener for each item to open DetailActivity
+        // Set click listener to navigate to DetailActivity
         holder.itemView.setOnClickListener {
             val intent = Intent(holder.itemView.context, DetailActivity::class.java)
-            intent.putExtra("object", items[position])
+            intent.putExtra("object", item)
             holder.itemView.context.startActivity(intent)
         }
+
+        // Fetch and display the number of reviews
+        reviewViewModel.fetchReviews(item.id.toString())
+        reviewViewModel.reviews.observe(context as AppCompatActivity, { reviews ->
+            holder.binding.tvReviewNumber.text = reviews.size.toString()
+        })
     }
 
-    // getItemCount method to return the number of items in the list
+    // Return the number of items in the list
     override fun getItemCount(): Int = items.size
+
+    // Update the list of items
+    fun updateList(newItems: List<ItemModel>) {
+        items.clear()
+        items.addAll(newItems)
+        notifyDataSetChanged()
+    }
 }
